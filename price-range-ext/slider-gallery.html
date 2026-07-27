@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スライダー UI ギャラリー</title>
+<link rel="stylesheet" href="styles.css">
+<script src="toolcool-range-slider.min.js"></script>
+<script src="tcrs-marks.min.js"></script>
+<script src="tcrs-generated-labels.min.js"></script>
+</head>
+<body>
+
+<h1>スライダー UI ギャラリー</h1>
+<p class="lead">
+  身近な例で使えるスライダー(つまみで数値を選ぶ部品)をいろいろ集めました。1本のつまみ、2本のつまみで範囲を選ぶもの、
+  縦向き、目盛りにピタッと止まるもの、回すタイプなど、動きが違うものを並べています。
+</p>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="label">勉強・仕事アプリ</div>
+    <h3>集中する時間を決める</h3>
+    <div class="hint">つまみを動かして、集中して作業する時間を1分きざみで選びます。</div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <my-range-slider id="wcTimer" min="5" max="60" step="1" value="25"></my-range-slider>
+      <span class="value" id="wcTimerVal" style="font-size:18px; margin:0;">25分</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">エアコンアプリ</div>
+    <h3>設定温度を決める</h3>
+    <div class="hint">温度計のように、縦向きのつまみを上下に動かして設定温度(16〜30℃)を選びます。</div>
+    <div style="display:flex; align-items:center; gap:20px; height:200px;">
+      <my-range-slider id="wcAircon" vertical min="16" max="30" step="1" value="24" style="height:190px; --filled-color:#f97316; --pointer-border-color:#f97316;"></my-range-slider>
+      <span class="value" id="wcAirconVal" style="font-size:18px; margin:0;">24℃</span>
+    </div>
+  </div>
+
+  <!-- 2ポインター範囲 + 数値入力 + チップ -->
+  <div class="card">
+    <div class="label">イベント管理</div>
+    <h3>参加可能な年齢層の設定</h3>
+    <div class="hint">2つのつまみで対象年齢の範囲を決め、数値入力でも微調整できます。</div>
+    <div class="value" id="ageLabel">18歳 〜 65歳</div>
+    <div class="dslider">
+      <div class="track"></div>
+      <div class="fill" id="ageFill" style="background: linear-gradient(90deg,#059669,#34d399);"></div>
+      <input id="ageMinRange" type="range" min="0" max="100" step="1" value="18">
+      <input id="ageMaxRange" type="range" min="0" max="100" step="1" value="65">
+      <div class="dthumb" id="ageMinThumb" style="border-color:#059669;"></div>
+      <div class="dthumb" id="ageMaxThumb" style="border-color:#059669;"></div>
+    </div>
+    <div class="inputs">
+      <div class="input-box"><label>下限年齢</label><div class="input-row"><input id="ageMinInput" type="number"></div></div>
+      <div class="input-box"><label>上限年齢</label><div class="input-row"><input id="ageMaxInput" type="number"></div></div>
+    </div>
+    <div class="chips">
+      <button class="chip" onclick="setAgeRange(18,25)">18〜25歳</button>
+      <button class="chip" onclick="setAgeRange(26,40)">26〜40歳</button>
+      <button class="chip" onclick="setAgeRange(0,100)">全年齢</button>
+    </div>
+    <button class="primary" onclick="applyAge()">この条件で募集を開始</button>
+    <div class="result" id="ageResult"></div>
+  </div>
+
+  <!-- 3ポインター + セグメント区切り -->
+  <div class="card">
+    <div class="label">学習アプリ</div>
+    <h3>テストの点数で成績を決める</h3>
+    <div class="hint">3つのつまみを動かして、0〜100点を4段階の成績に区切ります。</div>
+    <div class="dslider">
+      <div class="track">
+        <div class="segment" id="lvlSeg0"></div>
+        <div class="segment" id="lvlSeg1"></div>
+        <div class="segment" id="lvlSeg2"></div>
+        <div class="segment" id="lvlSeg3"></div>
+      </div>
+      <input id="lvlRange0" type="range" min="0" max="100" step="1" value="30">
+      <input id="lvlRange1" type="range" min="0" max="100" step="1" value="60">
+      <input id="lvlRange2" type="range" min="0" max="100" step="1" value="85">
+      <div class="dthumb" id="lvlThumb0"></div>
+      <div class="dthumb" id="lvlThumb1"></div>
+      <div class="dthumb" id="lvlThumb2"></div>
+    </div>
+    <div class="tier-list" id="lvlList"></div>
+  </div>
+
+  <!-- 独立した縦スライダー群 -->
+  <div class="card">
+    <div class="label">音楽アプリ</div>
+    <h3>音の高さごとに音量を調整する</h3>
+    <div class="hint">低い音・中くらいの音・高い音、それぞれの大きさを4本のつまみで調整します。</div>
+    <div class="vgroup" id="eqGroup"></div>
+  </div>
+
+  <!-- 離散マーク式スナップスライダー -->
+  <div class="card">
+    <div class="label">アンケートフォーム</div>
+    <h3>満足度アンケート</h3>
+    <div class="hint">5段階の目盛りにだけスナップする離散スライダーです(自由な値は選べません)。</div>
+    <div class="mood-display" id="moodEmoji">😐</div>
+    <div class="mood-text" id="moodText">普通</div>
+    <div class="marks-slider">
+      <input id="moodRange" type="range" min="0" max="4" step="1" value="2" list="moodMarks" style="accent-color:#f59e0b;">
+      <datalist id="moodMarks">
+        <option value="0"></option><option value="1"></option><option value="2"></option>
+        <option value="3"></option><option value="4"></option>
+      </datalist>
+      <div class="marks-labels"><span>😞</span><span>🙁</span><span>😐</span><span>🙂</span><span>😄</span></div>
+    </div>
+  </div>
+
+  <!-- 回転式ノブ -->
+  <div class="card">
+    <div class="label">キッチン家電</div>
+    <h3>オーブンの調理タイマーつまみ</h3>
+    <div class="hint">つまみをドラッグ(上下)するか、フォーカスして矢印キー・マウスホイールで回します。</div>
+    <div class="knob-row">
+      <div class="knob" id="ovenKnob" tabindex="0" role="slider" aria-label="調理時間" aria-valuemin="0" aria-valuemax="60" aria-valuenow="20">
+        <div class="knob-indicator" id="ovenIndicator"></div>
+      </div>
+      <div>
+        <div class="knob-readout" id="ovenVal">20分</div>
+        <div class="knob-hint">0〜60分</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="label">スマホの契約</div>
+    <h3>データ通信量プランを選ぶ</h3>
+    <div class="hint">1GB→3GB→5GB…とプランごとに増える幅がバラバラなリストから、ぴったり選びます。</div>
+    <tc-range-slider
+      id="tcIso"
+      data="1, 3, 5, 10, 20, 50, 100"
+      value="10"
+      marks="true"
+      marks-count="7"
+      marks-values-count="7"
+      generate-labels="true">
+    </tc-range-slider>
+    <div class="value" id="tcIsoVal" style="margin-top:30px; font-size:16px;">10GB</div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

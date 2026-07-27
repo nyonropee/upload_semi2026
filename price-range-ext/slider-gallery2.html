@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スライダー UI ギャラリー — 重複なし・多機能レンジスライダー集</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --page-bg: #f6f7fb;
+    --page-text: #111827;
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;
+    --card-shadow: rgba(15,23,42,0.06);
+    --card-radius: 20px;
+    --accent: #2563eb;
+    --heading-border: #dbeafe;
+    --muted-text: #6b7280;
+    --chip-bg: #f3f4f6;
+    --chip-border: #e5e7eb;
+    --chip-text: #374151;
+    --chip-hover-bg: #eff6ff;
+    --chip-hover-text: #2563eb;
+    --chip-hover-border: #bfdbfe;
+    --primary-bg: #111827;
+    --primary-text: #ffffff;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
+    background: var(--page-bg); color: var(--page-text);
+    max-width: 1120px; margin: 0 auto; padding: 32px 16px 80px; line-height: 1.6;
+    transition: background 0.4s ease, color 0.4s ease;
+  }
+  h1 { font-size: clamp(22px, 4vw, 32px); letter-spacing: -0.03em; margin-bottom: 8px; }
+  p.lead { color: var(--muted-text); max-width: 780px; font-size: 14.5px; margin-bottom: 28px; }
+  h2.part-title { font-size: 15px; font-weight: 800; color: var(--accent); margin: 40px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--heading-border); transition: color 0.4s ease, border-color 0.4s ease; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); padding: 22px; box-shadow: 0 10px 26px var(--card-shadow); }
+  .card.full { grid-column: 1 / -1; }
+  .label { font-size: 12px; color: var(--muted-text); font-weight: 700; margin-bottom: 4px; }
+  h3 { font-size: 18px; margin-bottom: 6px; }
+  .hint { font-size: 12px; color: var(--muted-text); margin-bottom: 16px; }
+  .value { font-size: 23px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 14px; }
+
+  /* --- dual/multi-thumb overlay slider (native input overlay technique) --- */
+  .dslider { position: relative; height: 44px; margin: 16px 4px; }
+  .track { position: absolute; left: 0; right: 0; top: 50%; height: 7px; transform: translateY(-50%); background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+  .fill { position: absolute; top: 50%; height: 7px; transform: translateY(-50%); border-radius: 999px; }
+  .segment { position: absolute; top: 50%; height: 9px; transform: translateY(-50%); border-radius: 999px; }
+  .dslider input[type="range"] { position: absolute; top: 50%; width: 100%; height: 44px; transform: translateY(-50%); appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; margin: 0; }
+  .dslider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: transparent; pointer-events: auto; cursor: grab; }
+  .dslider input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; border: none; background: transparent; pointer-events: auto; cursor: grab; }
+  .dthumb { position: absolute; top: 50%; width: 24px; height: 24px; background: #fff; border: 3px solid #2563eb; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 6px 14px rgba(37,99,235,0.25); pointer-events: none; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  button.chip { font-family: inherit; cursor: pointer; background: var(--chip-bg); border: 1px solid var(--chip-border); color: var(--chip-text); border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 700; transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+  button.chip:hover { background: var(--chip-hover-bg); color: var(--chip-hover-text); border-color: var(--chip-hover-border); }
+  .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .input-row { display: flex; gap: 6px; align-items: center; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 9px 12px; }
+  .input-row input { width: 100%; border: none; outline: none; background: transparent; font-weight: 700; }
+  .input-box label { display: block; font-size: 12px; color: #6b7280; font-weight: 700; margin-bottom: 5px; }
+  .result { text-align: center; color: #10b981; font-size: 13px; font-weight: 800; margin-top: 10px; min-height: 18px; }
+  button.primary { width: 100%; padding: 12px; background: var(--primary-bg); color: var(--primary-text); border-radius: 14px; font-weight: 800; border: none; cursor: pointer; font-family: inherit; transition: background 0.3s ease, color 0.3s ease; }
+
+  /* --- vertical independent sliders (EQ) --- */
+  .vgroup { display: flex; gap: 22px; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
+  .vslot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .vslot .vlabel { font-size: 12px; font-weight: 800; color: #374151; }
+  .vslider-wrap { width: 40px; height: 150px; display: flex; align-items: center; justify-content: center; }
+  .vslider-wrap input[type="range"] { width: 150px; height: 40px; transform: rotate(-90deg); margin: 0; }
+  .vslot .vname { font-size: 11px; color: #6b7280; }
+
+  .tier-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 860px) { .tier-list { grid-template-columns: repeat(2, 1fr); } }
+  .tier { border: 1px solid #e5e7eb; border-top: 4px solid #2563eb; border-radius: 14px; padding: 11px; background: #fff; }
+  .tier-name { font-size: 13px; font-weight: 900; margin-bottom: 4px; }
+  .tier-range { color: #6b7280; font-size: 12px; line-height: 1.5; }
+
+  /* --- discrete marks / snap slider --- */
+  .marks-slider input[type="range"] { width: 100%; height: 8px; margin: 6px 0 4px; }
+  .marks-labels { display: flex; justify-content: space-between; font-size: 18px; padding: 0 2px; }
+  .marks-labels span { width: 20%; text-align: center; }
+  .mood-display { text-align: center; font-size: 40px; margin-bottom: 4px; }
+  .mood-text { text-align: center; font-size: 14px; font-weight: 800; color: #374151; margin-bottom: 10px; }
+
+  /* --- radial knob --- */
+  .knob-row { display: flex; align-items: center; gap: 24px; justify-content: center; padding: 6px 0; }
+  .knob {
+    position: relative; width: 100px; height: 100px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, #e5e7eb 70%);
+    box-shadow: 0 8px 20px rgba(15,23,42,0.18), inset 0 0 0 1px #d1d5db;
+    cursor: ns-resize; touch-action: none; outline-offset: 4px;
+  }
+  .knob:focus { outline: 2px solid #2563eb; }
+  .knob-indicator { position: absolute; left: 50%; top: 8px; width: 4px; height: 26px; background: #2563eb; border-radius: 2px; transform-origin: 2px 42px; margin-left: -2px; }
+  .knob-readout { font-size: 22px; font-weight: 900; }
+  .knob-hint { font-size: 12px; color: #6b7280; }
+
+  /* --- 本家 toolcool-range-slider 用の余白調整 --- */
+  tc-range-slider { display: block; margin-top: 10px; }
+
+</style>
+<script>
+/* Tool Cool Range Slider v4.0.28 - https://github.com/mzusin/toolcool-range-slider - MIT License - inlined so the page has zero external file dependencies */
+(()=>{var jn=Object.defineProperty;var Et=Math.pow,qn=(r,i,t)=>i in r?jn(r,i,{enumerable:!0,configurable:!0,writable:!0,value:t}):r[i]=t;var ae=(r,i,t)=>(qn(r,typeof i!="symbol"?i+"":i,t),t);var St=(r,i)=>` ${i&&i.length>0?i.map(t=>`<link rel="stylesheet" href="${t}" />`).join(""):""} <style> ${r} </style> <div class="range-slider-box"> <div class="row"> <div id="range-slider" class="range-slider"> <div class="container"> <div class="panel"></div> <div class="panel-fill"></div> <div class="container"> <div class="pointer" tabindex="0" role="slider"> <div class="pointer-shape"></div> </div> </div> </div> </div> </div> </div>`;var Tt=":host{--width:300px;--height:.25rem;--opacity:.4;--panel-bg:#cbd5e1;--panel-bg-hover:#94a3b8;--panel-bg-fill:#475569;--panel-bg-border-radius:1rem;--pointer-width:1rem;--pointer-height:1rem;--pointer-bg:#fff;--pointer-bg-hover:#dcdcdc;--pointer-bg-focus:#dcdcdc;--pointer-shadow:0 0 2px rgba(0,0,0,0.8);--pointer-shadow-hover:0 0 2px #000;--pointer-shadow-focus:var(--pointer-shadow-hover);--pointer-border:1px solid hsla(0,0%,88%,0.5);--pointer-border-hover:1px solid #94a3b8;--pointer-border-focus:var(--pointer-border-hover);--pointer-border-radius:100%;--animate-onclick:.3s}:host{max-width:100%}.range-slider-box{display:flex;position:relative;flex-direction:column}.range-slider{position:relative;width:var(--width,100%);height:var(--height,0.25rem);touch-action:none;max-width:100%;box-sizing:border-box;cursor:pointer}.row{width:100%;display:flex;align-items:center}.range-slider.disabled{opacity:var(--opacity,0.4);cursor:default}.pointer.disabled{-webkit-filter:brightness(0.8);filter:brightness(0.8);cursor:default}.range-slider *{box-sizing:border-box}.container{position:absolute;width:100%;height:100%}.panel{position:absolute;z-index:10;width:100%;height:100%;background:var(--panel-bg,#2d4373);border-radius:var(--panel-bg-border-radius,1rem);overflow:hidden;transition:.3s all ease}.panel-fill{background:var(--panel-bg-fill,#000);border-radius:var(--panel-bg-border-radius,1rem);overflow:hidden;height:100%;position:absolute;z-index:10}.panel:hover{background:var(--panel-bg-hover,#5f79b7)}.disabled .panel:hover{background:var(--panel-bg,#5f79b7)}.pointer{position:absolute;z-index:20;outline:0;top:50%;-webkit-transform:translateY(-50%);transform:translateY(-50%)}.pointer-shape{background:var(--pointer-bg,#fff);background-size:contain;box-shadow:var(--pointer-shadow);border:var(--pointer-border);border-radius:var(--pointer-border-radius,100%);-webkit-transform:translateX(-50%);transform:translateX(-50%);width:var(--pointer-width,15px);height:var(--pointer-height,15px);transition:.3s all ease}.pointer-shape:hover{background:var(--pointer-bg-hover,#fff);background-size:contain;border:var(--pointer-border-hover);box-shadow:var(--pointer-shadow-hover)}.disabled .pointer-shape:hover{background:var(--pointer-bg,#fff);background-size:contain;border:var(--pointer-border);box-shadow:var(--pointer-shadow)}.pointer:focus .pointer-shape{background:var(--pointer-bg-focus,#fff);background-size:contain;border:var(--pointer-border-focus);box-shadow:var(--pointer-shadow-focus)}.disabled .pointer:focus .pointer-shape{background:var(--pointer-bg,#fff);background-size:contain;border:var(--pointer-border);box-shadow:var(--pointer-shadow)}.type-vertical .range-slider{--width:.25rem;--height:300px;max-height:100%}.type-vertical .range-slider .pointer{left:50%}.type-vertical .range-slider .panel-fill{width:100%}.type-vertical.range-slider-box{flex-direction:row}.type-vertical .row{flex-direction:column}.animate-on-click .pointer,.animate-on-click .panel-fill{transition:all var(--animate-onclick)}.range-dragging .panel-fill{cursor:move}";var le="pointers-overlap",ue="pointers-min-distance",de="pointers-max-distance",ce="range-dragging",pe="data",be="min",ge="max",fe="step",me="round",he="type",ve="theme",ye="rtl",xe="btt",Pe="disabled",Ee="keyboard-disabled",Se="mousewheel-disabled",At="slider-width",Mt="slider-height",wt="slider-radius",Dt="slider-bg",Lt="slider-bg-hover",Ct="slider-bg-fill",kt="pointer-width",Ht="pointer-height",It="pointer-radius",Rt="pointer-bg",Ot="pointer-bg-hover",Bt="pointer-bg-focus",Ft="pointer-shadow",Nt="pointer-shadow-hover",Vt="pointer-shadow-focus",Ut="pointer-border",zt="pointer-border-hover",Wt="pointer-border-focus",Te="animate-onclick",Kt="css-links";var I="vertical",V="horizontal";var we=(r,i,t,n,s)=>{let d=i-r;return d===0?t:(n-t)*(s-r)/d+t},B=r=>!isNaN(parseFloat(r))&&isFinite(r),E=(r,i)=>B(r)?Number(r):i,Qe=(r,i)=>i===0?0:Math.round(r/i)*i,jt=(r,i=1/0)=>{if(i===1/0)return r;let t=Et(10,i);return Math.round(r*t)/t},D=r=>r==null?!1:typeof r=="boolean"?r:r.trim().toLowerCase()==="true";var qt=(r,i)=>{r.dispatchEvent(new CustomEvent("onPointerClicked",{detail:{$pointer:i}}))},Xt=(r,i)=>{r.dispatchEvent(new CustomEvent("onMouseDown",{detail:{nativeEvent:i}}))},Gt=(r,i)=>{r.dispatchEvent(new CustomEvent("onMouseUp",{detail:{nativeEvent:i}}))},Yt=(r,i)=>{r.dispatchEvent(new CustomEvent("onKeyDown",{detail:{nativeEvent:i}}))},Zt=(r,i)=>{if(!i||i.length<=0)return;let t=i.map(s=>B(s)?E(s,s):s),n={values:t||[]};n.value=t[0],n.value0=t[0],n.value1=t[0];for(let s=1;s<t.length;s++)n[`value${s+1}`]=t[s];r.dispatchEvent(new CustomEvent("change",{detail:n}))};var Y=(r,i,t)=>{let n=0,s,d,m,l,a=!1,f=(g,S,L,P,A,k)=>{let F=n;L!==void 0&&g>L&&(g=L),S!==void 0&&g<S&&(g=S),n=g;let R=n;return(P===I&&k||P===V&&A)&&(R=100-R),P===I?i.style.top=`${R}%`:i.style.left=`${R}%`,F!==n},x=g=>g===i||i.contains(g),p=(g,S,L,P)=>{s=g,d=S,m=L,l=P},b=g=>{a=g,i.classList.toggle("disabled",a),a?i.setAttribute("aria-disabled","true"):i.hasAttribute("aria-disabled")&&i.removeAttribute("aria-disabled")},T=(g,S)=>{S==null?i.removeAttribute(g):i.setAttribute(g,S)},C=g=>i.getAttribute(g),c=g=>{if(!a){switch(g.key){case"ArrowLeft":{g.preventDefault(),typeof s=="function"&&s(t);break}case"ArrowRight":{g.preventDefault(),typeof d=="function"&&d(t);break}case"ArrowUp":{g.preventDefault(),typeof m=="function"&&m(t);break}case"ArrowDown":{g.preventDefault(),typeof l=="function"&&l(t);break}}Yt(r,g)}},h=()=>{a||qt(r,i)};return i.className=`pointer pointer-${t}`,i.addEventListener("keydown",c),i.addEventListener("click",h),{$pointer:i,get percent(){return n},get disabled(){return a},set disabled(g){b(g)},updatePosition:f,isClicked:x,setCallbacks:p,setAttr:T,getAttr:C,destroy:()=>{i.removeEventListener("keydown",c),i.removeEventListener("click",h),i.remove()}}};var Jt=r=>{if(r==null)return;if(Array.isArray(r))return r;if(r.trim()==="")return;let t=r.split(","),n=[],s=!0;for(let d=0;d<t.length;d++){let m=t[d].trim();m!==""&&(n.push(m),B(m)||(s=!1))}return s?n.map(d=>Number(d)):n},Qt=(r,i)=>i?i.findIndex(t=>t===r||t.toString().trim()===r.toString().trim()):-1;var _t=r=>({updatePosition:(t,n,s,d)=>{if(n.length<=0)return;let m=n.length===1,l=n[0],a=n[n.length-1];t===I?(r.style.removeProperty("width"),r.style.removeProperty("right"),r.style.removeProperty("left"),m?r.style.height=`${l}%`:r.style.height=`${Math.abs(l-a)}%`,d?(r.style.bottom="0%",m?r.style.top="auto":r.style.top=`${Math.min(100-a,100-l)}%`):(r.style.bottom="auto",m?r.style.top="0%":r.style.top=`${Math.min(l,a)}%`)):(r.style.removeProperty("height"),r.style.removeProperty("top"),r.style.removeProperty("bottom"),m?r.style.width=`${l}%`:r.style.width=`${Math.abs(l-a)}%`,s?(r.style.right="0%",m?r.style.left="auto":r.style.left=`${Math.min(100-a,100-l)}%`):(r.style.right="auto",m?r.style.left="0%":r.style.left=`${Math.min(l,a)}%`))}});var _e="--animate-onclick",$t="--width",en="--height",tn="--panel-bg-border-radius",nn="--panel-bg",rn="--panel-bg-hover",on="--panel-bg-fill",sn="--pointer-width",an="--pointer-height",ln="--pointer-border-radius",un="--pointer-bg",dn="--pointer-bg-hover",cn="--pointer-bg-focus",pn="--pointer-shadow",bn="--pointer-shadow-hover",gn="--pointer-shadow-focus",fn="--pointer-border",mn="--pointer-border-hover",hn="--pointer-border-focus";var q=(r,i,t)=>{let n=new Map;for(let s of r.attributes){let d=s.nodeName.trim().toLowerCase();if(!i.test(d))continue;let l=d.replace(/\D/g,"").trim(),a=l===""||l==="0"||l==="1"?0:E(l,0)-1,f=t&&typeof t=="function"?t(s.value):s.value;n.set(a,f)}return n},yn=r=>{if(!r)return null;let i=r.getAttribute(Kt);if(!i)return null;let t=i.split(";"),n=[];for(let s of t)s.trim()!==""&&n.push(s.trim());return n};var $e=[[$t,At,"sliderWidth",null],[en,Mt,"sliderHeight",null],[tn,wt,"sliderRadius",null],[nn,Dt,"sliderBg",null],[rn,Lt,"sliderBgHover",null],[on,Ct,"sliderBgFill",null],[sn,kt,"pointer#Width",/^pointer([0-9]*)-width$/],[an,Ht,"pointer#Height",/^pointer([0-9]*)-height$/],[ln,It,"pointer#Radius",/^pointer([0-9]*)-radius$/],[un,Rt,"pointer#Bg",/^pointer([0-9]*)-bg$/],[dn,Ot,"pointer#BgHover",/^pointer([0-9]*)-bg-hover$/],[cn,Bt,"pointer#BgFocus",/^pointer([0-9]*)-bg-focus$/],[pn,Ft,"pointer#Shadow",/^pointer([0-9]*)-shadow$/],[bn,Nt,"pointer#ShadowHover",/^pointer([0-9]*)-shadow-hover$/],[gn,Vt,"pointer#ShadowFocus",/^pointer([0-9]*)-shadow-focus$/],[fn,Ut,"pointer#Border",/^pointer([0-9]*)-border$/],[mn,zt,"pointer#BorderHover",/^pointer([0-9]*)-border-hover$/],[hn,Wt,"pointer#BorderFocus",/^pointer([0-9]*)-border-focus$/]],xn=(r,i,t)=>{let n=null,s=[],d=new Map,m=(c,h=i)=>{let w=[...h.classList];for(let g of w)g.startsWith(c)&&i.classList.remove(g)},l=()=>{m("shape");let c=i.querySelectorAll(".pointer");for(let h of c)m("shape",h)},a=c=>{n=c,m("theme-"),typeof c=="string"&&i.classList.add(`theme-${c}`)},f=()=>{if(l(),!(s.length<=0)){i.classList.add("shape",`shape-${s[0]}`);for(let c=1;c<s.length;c++){let h=s[c];if(!h)continue;let w=i.querySelector(`.pointer-${c}`);!w||w.classList.add("shape",`shape-${h}`)}}},x=(c,h)=>{s[c]=h,f()},p=()=>{l();let c=q(r,/^pointer([0-9]*)-shape$/);if(!(c.size<=0)){for(let h of c){let w=h[0];s[w]=h[1]}f()}},b=(c,h)=>`${c}-${h}`,T=(c,h,w)=>{let g=t[w];if(!g)return;let S=w===0?i:g.$pointer;if(h==null){d.has(b(c,w))&&d.delete(b(c,w)),S.style.removeProperty(c);return}d.set(b(c,w),h),S.style.setProperty(c,h)},C=(c,h)=>d.get(b(c,h));return(()=>{for(let c of $e){let[h,w,g,S]=c;if(S){let P=q(r,S);for(let A of P){let k=A[0],F=A[1];T(h,F,k)}}else{let P=r.getAttribute(w);T(h,P,0)}let L=[];if(g.indexOf("#")===-1)L.push([g,0]);else{L.push([g.replace("#",""),0]),L.push([g.replace("#","0"),0]),L.push([g.replace("#","1"),0]);for(let P=1;P<t.length;P++)L.push([g.replace("#",(P+1).toString()),P])}for(let P of L)try{let A=P[0],k=P[1];Object.prototype.hasOwnProperty.call(r,A)||Object.defineProperty(r,A,{get(){return C(h,k)},set:F=>{T(h,F,k)}})}catch(A){console.error(A)}}a(r.getAttribute(ve)),p()})(),{setStyle:T,getStyle:C,get theme(){return n},set theme(c){a(c)},get pointerShapes(){return s},setPointerShape:x}};var K="animate-on-click",et="range-dragging";var Pn=(r,i,t,n)=>{let s=[],d=p=>{for(let b of s)b.update&&typeof b.update=="function"&&b.update(p)},m=()=>{for(let p of s)p.destroy&&typeof p.destroy=="function"&&p.destroy()},l=(p,b)=>{for(let T of s)T.onAttrChange&&typeof T.onAttrChange=="function"&&T.onAttrChange(p,b)},a=p=>{if(!!p.gettersAndSetters){for(let b of p.gettersAndSetters)if(!(!b.name||!b.attributes))try{Object.prototype.hasOwnProperty.call(r,b.name)||Object.defineProperty(r,b.name,b.attributes)}catch(T){console.error("defineSettersGetters error:",T)}}},f=p=>{var T;if(!p.css)return;let b=(T=r.shadowRoot)==null?void 0:T.querySelector("style");!b||(b.innerHTML+=p.css)};return{init:()=>{if(!!window.tcRangeSliderPlugins)for(let p of window.tcRangeSliderPlugins){let b=p();s.push(b),b.init&&typeof b.init=="function"&&(b.init(r,i,t,n),a(b),f(b))}},update:d,onAttrChange:l,destroy:m}};var Yn=10,En=20,Sn=(r,i)=>{let t=new Map,n=/^value([0-9]*)$/;for(let l of r.attributes){let a=l.nodeName.trim().toLowerCase();if(!n.test(a))continue;let x=a.replace("value","").trim(),p=x===""||x==="0"||x==="1"?0:E(x,0)-1,b=B(l.value)?E(l.value,0):l.value;t.set(p,b)}let s=Math.max(...Array.from(t.keys())),d=[];d.push([Y(r,i,0),t.get(0)]);let m=i;for(let l=1;l<=s;l++){let a=i.cloneNode(!0);m.after(a),m=a,d.push([Y(r,a,l),t.get(l)])}return d},tt=(r,i,t,n,s,d,m)=>{try{Object.defineProperty(r,n,{configurable:!0,get(){if(!i)return;let l=i.pointers[t];if(!l)return;let a=i.getTextValue(l.percent);return B(a)?E(a,a):a},set:l=>{i.pointers[t]?i==null||i.setValue(l,t):i==null||i.addPointer(l)}}),Object.defineProperty(r,s,{configurable:!0,get(){var l,a;return(a=(l=i==null?void 0:i.pointers[t])==null?void 0:l.getAttr("aria-label"))!=null?a:void 0},set:l=>{!i||i.setAriaLabel(t,l)}}),Object.defineProperty(r,d,{configurable:!0,get(){var l,a;return(a=(l=i==null?void 0:i.styles)==null?void 0:l.pointerShapes[t])!=null?a:null},set:l=>{!i||!i.styles||i.styles.setPointerShape(t,l)}}),Object.defineProperty(r,m,{configurable:!0,get(){var l;return(l=i==null?void 0:i.pointers[t].disabled)!=null?l:!1},set:l=>{if(!i)return;let a=i==null?void 0:i.pointers[t];!a||(a.disabled=l)}})}catch(l){console.error(l)}},Tn=(r,i)=>{let t=[["value","ariaLabel","pointerShape","pointerDisabled",0],["value0","ariaLabel0","pointerShape0","pointer0Disabled",0],["value1","ariaLabel1","pointerShape1","pointer1Disabled",0]];for(let n=2;n<Yn;n++)t.push([`value${n}`,`ariaLabel${n}`,`pointer${n}Shape`,`pointer${n}Disabled`,n-1]);for(let n of t)tt(r,i,n[4],n[0],n[1],n[2],n[3])},nt=(r,i,t)=>{var s;let n=(s=t.shadowRoot)==null?void 0:s.querySelector(".container");if(!!n)for(let d of r)i?n.prepend(d.$pointer):n.append(d.$pointer)},An=(r,i)=>{if(!(!i||r.length<=1)){for(let t of r)t.$pointer.style.zIndex=En.toString();i.$pointer.style.zIndex=(En*2).toString()}};var rt=0,Z=100,U=2,Mn="0.3s",wn=(r,i,t)=>{let n=t.map(e=>e[0]),s=null,d=null,m=null,l=null,a=rt,f=Z,x,p,b=V,T=U,C=!1,c=!1,h=!1,w=0,g=1/0,S=!1,L,P,A=!1,k=!1,F=!1,R=Mn,ot=[],st=e=>{A||(e.preventDefault&&e.preventDefault(),z(e),window.addEventListener("mousemove",z),window.addEventListener("mouseup",J),Xt(r,e))},J=e=>{A||(L=void 0,P=void 0,window.removeEventListener("mousemove",z),window.removeEventListener("mouseup",J),R&&i.classList.add(K),Gt(r,e))},Ln=(e,o)=>{if(n.length<=0)return;if(n.length===1)return n[0].isClicked(e)&&R&&i.classList.remove(K),n[0];let u=kn(e);if(S){let v=o,O=_(v);O!==void 0&&(v=Qe(v,O)),u?(L=v,P=0,R&&i.classList.remove(K)):L!==void 0&&(P=v-L,L=v)}if(!Cn(e)&&!u){for(let v of n)if(!(!v.isClicked(e)||v.disabled))return R&&i.classList.remove(K),v;for(let v of n)if(s===v)return v}let y=1/0,M=null;for(let v of n){if(v.disabled)continue;let O=Math.abs(o-v.percent);O<y&&(y=O,M=v)}return M},at=()=>n.findIndex(e=>s===e&&!e.disabled),z=e=>{let o;if(b===I){let{height:y,top:M}=i.getBoundingClientRect(),v=e.type.indexOf("mouse")!==-1?e.clientY:e.touches[0].clientY;o=Math.min(Math.max(0,v-M),y)*100/y}else{let{width:y,left:M}=i.getBoundingClientRect(),v=e.type.indexOf("mouse")!==-1?e.clientX:e.touches[0].clientX;o=Math.min(Math.max(0,v-M),y)*100/y}if((C||c)&&(o=100-o),s=Ln(e.target,o),s&&An(n,s),S&&n.length>1&&P!==void 0){let y=n[0],M=n[n.length-1],v=y.percent+P<0,O=M.percent+P>100;if(v||O)return;for(let se=0;se<n.length;se++)H(se,n[se].percent+P);return}let u=at();u!==-1&&(H(u,o),s==null||s.$pointer.focus())},Q=e=>{if(A||document.activeElement!==r||(s==null?void 0:s.disabled))return;e.stopPropagation(),e.preventDefault();let o=e.deltaY<0,u=C||c,y=o?!u:u,M=at();M!==-1&&(y?X(M,n[M].percent):G(M,n[M].percent))},lt=e=>{A||k||(b===I?c?H(e,100):H(e,0):C?G(e,n[e].percent):X(e,n[e].percent))},ut=e=>{A||k||(b===I?c?H(e,0):H(e,100):C?X(e,n[e].percent):G(e,n[e].percent))},dt=e=>{A||k||(b===I?c?G(e,n[e].percent):X(e,n[e].percent):C?H(e,100):H(e,0))},ct=e=>{A||k||(b===I?c?X(e,n[e].percent):G(e,n[e].percent):C?H(e,0):H(e,100))},Cn=e=>e.classList.contains("panel"),kn=e=>e.classList.contains("panel-fill"),X=(e,o)=>{if(o===void 0)return;let u=_(o);u==null&&(u=1),o-=u,o<0&&(o=0),H(e,o)},G=(e,o)=>{if(o===void 0)return;let u=_(o);u==null&&(u=1),o+=u,o>100&&(o=100),H(e,o)},W=()=>{!l||l.update({percents:pt(),values:bt(),$pointers:gt(),min:ft(),max:mt(),data:Ce(),step:Le(),round:He(),type:ke(),textMin:$(),textMax:ee(),rightToLeft:Oe(),bottomToTop:Be(),pointersOverlap:Ue(),pointersMinDistance:Ie(),pointersMaxDistance:Re(),rangeDragging:ze(),disabled:Fe(),keyboardDisabled:Ne(),mousewheelDisabled:Ve()})},Hn=()=>{W()},In=e=>{if(!(h||n.length<=1||f===a))if(e===0){let o=g*100/(f-a);return Math.max(0,n[e+1].percent-o)}else{let o=w*100/(f-a);return Math.min(n[e-1].percent+o,100)}},Rn=e=>{if(!(h||n.length<=1||f===a))if(e===n.length-1){let o=g*100/(f-a);return Math.min(n[e-1].percent+o,100)}else{let o=w*100/(f-a);return Math.max(0,n[e+1].percent-o)}},_=e=>{let o;if(typeof x=="function"){let u=we(0,100,a,f,e);o=x(u,e)}else o=x;if(B(o)){let u=f-a;return o=u===0?0:o*100/u,o}},j=e=>{if(e===void 0)return;let o=we(0,100,a,f,e);return p!==void 0?p[Math.round(o)]:jt(o,T)},$=()=>p!==void 0?p[a]:a,ee=()=>p!==void 0?p[f]:f,Le=()=>x,On=e=>{var o;return e<=0||h?$():(o=j(n[e-1].percent))!=null?o:""},Bn=e=>{var o;return n.length<=1||e>=n.length-1||h?ee():(o=j(n[e+1].percent))!=null?o:""},pt=()=>n.map(e=>e.percent),bt=()=>n.map(e=>j(e.percent)),gt=()=>n.map(e=>e.$pointer),ft=()=>a,mt=()=>f,Ce=()=>p,ke=()=>b,He=()=>T,Ie=()=>w,Re=()=>g,Fn=e=>ot[e],Oe=()=>C,Be=()=>c,Fe=()=>A,Ne=()=>k,Ve=()=>F,Ue=()=>h,ze=()=>S,H=(e,o)=>{if(o===void 0)return;let u=_(o);u!==void 0&&(o=Qe(o,u));let y=n[e];if(!y)return;let M=y.updatePosition(o,In(e),Rn(e),b,C,c);d==null||d.updatePosition(b,n.map(v=>v.percent),C,c),W();for(let v of n){let O=j(v.percent);O!==void 0&&(v.setAttr("aria-valuenow",O.toString()),v.setAttr("aria-valuetext",O.toString()))}Vn(),M&&Zt(r,n.map(v=>j(v.percent)))},N=()=>{for(let e=0;e<n.length;e++)H(e,n[e].percent)},Nn=(e,o)=>{a=p!==void 0?0:E(e,rt),f=p!==void 0?p.length-1:E(o,Z),te(a),ne(f)},Vn=()=>{var e,o;for(let u=0;u<n.length;u++){let y=n[u];y.setAttr("aria-valuemin",((e=On(u))!=null?e:"").toString()),y.setAttr("aria-valuemax",((o=Bn(u))!=null?o:"").toString())}},te=e=>{a=E(e,rt),a>f&&(f=a+Z),N()},ne=e=>{f=E(e,Z),f<a&&(f=a+Z),N()},ht=e=>{h=!0;for(let o=0;o<e.length;o++)re(e[o],o);h=!1;for(let o=0;o<e.length;o++)re(e[o],o)},re=(e,o)=>{let u;p!==void 0?(u=e==null?0:Qt(e,p),u===-1&&(u=0)):(u=E(e,a),u<a&&(u=a),u>f&&(u=f));let y=we(a,f,0,100,u);H(o,y)},ie=e=>{if(e==null){x=void 0;return}if(typeof e=="function"){x=e,N();return}if(B(e)){x=E(e,1);let o=Math.abs(f-a);x>o&&(x=void 0),N();return}x=void 0},We=e=>{h=e,N()},Ke=e=>{(!B(e)||e<0)&&(e=0),w=e},je=e=>{(!B(e)||e<0)&&(e=1/0),g=e},qe=e=>{A=e,i.classList.toggle("disabled",A),A?i.setAttribute("aria-disabled","true"):i.hasAttribute("aria-disabled")&&i.removeAttribute("aria-disabled")},vt=e=>{k=e},yt=e=>{F=e,F?document.removeEventListener("wheel",Q):document.addEventListener("wheel",Q,{passive:!1})},Xe=e=>{if(e==null){p=void 0;return}if(p=Jt(e),p===void 0||p.length<=0){p=void 0;return}te(0),ne(p.length-1),x===void 0&&ie(1)},Ge=e=>{var y;typeof e=="string"?b=e.trim().toLowerCase()===I?I:V:b=V;let o=(y=r.shadowRoot)==null?void 0:y.querySelector(".range-slider-box");if(!o)return;o.className=`range-slider-box type-${b}`,N();let u=b===I?"vertical":"horizontal";for(let M of n)M.setAttr("aria-orientation",u)},Ye=e=>{C=e,n.length>1&&nt(n,C,r),N(),W()},Ze=e=>{c=e,n.length>1&&nt(n,c,r),N(),W()},Je=e=>{T=E(e,U),T<0&&(T=U),W()},xt=e=>{e==null||e.toString().trim().toLowerCase()==="false"?(R=void 0,i.style.removeProperty(_e),i.classList.remove(K)):(R=e.toString(),i.style.setProperty(_e,R),i.classList.add(K))},Pt=(e,o)=>{let u=n[e];!u||(u.setAttr("aria-label",o),ot[e]=o)},oe=e=>{if(L=void 0,n.length<=1){S=!1,i.classList.remove(et);return}S=e,i.classList.toggle(et,S)},Un=()=>{qe(D(r.getAttribute(Pe))),k=D(r.getAttribute(Ee)),F=D(r.getAttribute(Se));let e=q(r,/^pointer([0-9]*)-disabled$/,o=>D(o));for(let o of e){let u=o[0];!n[u]||(n[u].disabled=o[1])}},zn=()=>{let e=q(r,/^aria-label([0-9]*)$/);for(let o of e){let u=o[0];Pt(u,o[1])}},Wn=e=>{let o=n.length,u=n[o-1].$pointer,y=u.cloneNode(!0);u.after(y);let M=Y(r,y,o);return M.setCallbacks(lt,ut,dt,ct),n.push(M),re(e,o),N(),W(),o},Kn=()=>{let e=n.length,o=n[e-1];return o?(o.destroy(),n.pop(),n.length<=1&&oe(!1),N(),W(),e-1):-1};return(()=>{var o,u;for(let y of n)y.setCallbacks(lt,ut,dt,ct);let e=(o=r.shadowRoot)==null?void 0:o.querySelector(".panel-fill");e&&(d=_t(e)),Ge(r.getAttribute(he)),Ye(D(r.getAttribute(ye))),Ze(D(r.getAttribute(xe))),Nn(r.getAttribute(be),r.getAttribute(ge)),ie(r.getAttribute(fe)),Xe(r.getAttribute(pe)),ht(t.map(y=>y[1])),We(D(r.getAttribute(le))),Ke(E(r.getAttribute(ue),0)),je(E(r.getAttribute(de),1/0)),oe(D(r.getAttribute(ce))),Je(E(r.getAttribute(me),U)),Un(),zn(),m=xn(r,i,n),xt((u=r.getAttribute(Te))!=null?u:Mn),i.addEventListener("mousedown",st),i.addEventListener("mouseup",J),i.addEventListener("touchmove",z),i.addEventListener("touchstart",z),F||document.addEventListener("wheel",Q,{passive:!1}),l=Pn(r,Hn,{setValues:ht,setMin:te,setMax:ne,setStep:ie,setPointersOverlap:We,setPointersMinDistance:Ke,setPointersMaxDistance:je,setDisabled:qe,setType:Ge,setRightToLeft:Ye,setBottomToTop:Ze,setRound:Je,setKeyboardDisabled:vt,setMousewheelDisabled:yt,setRangeDragging:oe,setData:Xe},{getPercents:pt,getValues:bt,getPointerElements:gt,getMin:ft,getMax:mt,getStep:Le,getData:Ce,getType:ke,getRound:He,getTextMin:$,getTextMax:ee,isRightToLeft:Oe,isBottomToTop:Be,isDisabled:Fe,isKeyboardDisabled:Ne,isMousewheelDisabled:Ve,isPointersOverlap:Ue,isRangeDraggingEnabled:ze,getPointersMinDistance:Ie,getPointersMaxDistance:Re}),l.init()})(),{get pointers(){return n},get styles(){return m},get pluginsManager(){return l},get min(){return $()},get max(){return ee()},get step(){return Le()},get pointersOverlap(){return Ue()},set pointersOverlap(e){We(e)},get pointersMinDistance(){return Ie()},set pointersMinDistance(e){Ke(e)},get pointersMaxDistance(){return Re()},set pointersMaxDistance(e){je(e)},get disabled(){return Fe()},set disabled(e){qe(e)},get data(){return Ce()},get type(){return ke()},set type(e){Ge(e)},get rightToLeft(){return Oe()},set rightToLeft(e){Ye(e)},get bottomToTop(){return Be()},set bottomToTop(e){Ze(e)},get round(){return He()},set round(e){Je(e)},get animateOnClick(){return R},set animateOnClick(e){xt(e)},get keyboardDisabled(){return Ne()},set keyboardDisabled(e){vt(e)},get mousewheelDisabled(){return Ve()},set mousewheelDisabled(e){yt(e)},get rangeDragging(){return ze()},set rangeDragging(e){oe(e)},setMin:te,setMax:ne,setValue:re,setStep:ie,setData:Xe,getTextValue:j,setAriaLabel:Pt,getAriaLabel:Fn,addPointer:Wn,removePointer:Kn,destroy:()=>{i.removeEventListener("mousedown",st),i.removeEventListener("mouseup",J),i.removeEventListener("touchmove",z),i.removeEventListener("touchstart",z),document.removeEventListener("wheel",Q);for(let e of n)e.destroy();l==null||l.destroy()}}};var Dn=(r,i,t)=>{let n=$e.find(([l,a,f,x])=>a.replace("#","")===i.replace(/\d+/g,""));if(n&&r.styles){let[l,a,f,x]=n,p=i.replace(/\D/g,"").trim(),b=p===""||p==="0"||p==="1"?0:E(p,0)-1;r.styles.setStyle(l,t,b);return}switch(r&&r.pluginsManager&&r.pluginsManager.onAttrChange(i,t),i){case be:{r.setMin(t);break}case ge:{r.setMax(t);break}case fe:{r.setStep(t);break}case le:{r.pointersOverlap=D(t);break}case ue:{r.pointersMinDistance=E(t,0);break}case ce:{r.rangeDragging=D(t);break}case de:{r.pointersMaxDistance=E(t,1/0);break}case Pe:{r.disabled=D(t);break}case Ee:{r.keyboardDisabled=D(t);break}case Se:{r.mousewheelDisabled=D(t);break}case pe:{r.setData(t);break}case he:{r.type=t;break}case ye:{r.rightToLeft=D(t);break}case xe:{r.bottomToTop=D(t);break}case me:{r.round=E(t,U);break}case ve:{r.styles&&(r.styles.theme=t);break}case Te:{r.animateOnClick=t;break}}let s=null;if(/^value([0-9]*)$/.test(i)&&(s="value"),/^pointer([0-9]*)-disabled$/.test(i)&&(s="pointer-disabled"),/^aria-label([0-9]*)$/.test(i)&&(s="aria-label"),/^pointer([0-9]*)-shape$/.test(i)&&(s="pointer-shape"),!s)return;let d=i.replace(/\D/g,"").trim(),m=d===""||d==="0"||d==="1"?0:E(d,0)-1;switch(s){case"value":{r.setValue(t,m);break}case"pointer-disabled":{let l=r==null?void 0:r.pointers[m];if(!l)return;l.disabled=D(t);break}case"aria-label":{r.setAriaLabel(m,t);break}case"pointer-shape":{r.styles&&r.styles.setPointerShape(m,t);break}}};var it=class extends HTMLElement{constructor(){super();ae(this,"slider");ae(this,"_externalCSSList",[]);ae(this,"_observer",null);this.attachShadow({mode:"open"})}set step(t){this.slider&&this.slider.setStep(t)}get step(){var t;return(t=this.slider)==null?void 0:t.step}set disabled(t){this.slider&&(this.slider.disabled=t)}get disabled(){var t,n;return(n=(t=this.slider)==null?void 0:t.disabled)!=null?n:!1}set data(t){var n;(n=this.slider)==null||n.setData(t)}get data(){var t;return(t=this.slider)==null?void 0:t.data}set min(t){var n;(n=this.slider)==null||n.setMin(t)}get min(){var t;return(t=this.slider)==null?void 0:t.min}set max(t){var n;(n=this.slider)==null||n.setMax(t)}get max(){var t;return(t=this.slider)==null?void 0:t.max}set round(t){!this.slider||(this.slider.round=t)}get round(){var t,n;return(n=(t=this.slider)==null?void 0:t.round)!=null?n:U}set type(t){!this.slider||(this.slider.type=t!=null?t:V)}get type(){var t;return((t=this.slider)==null?void 0:t.type)||V}set pointersOverlap(t){!this.slider||(this.slider.pointersOverlap=t)}get pointersOverlap(){var t,n;return(n=(t=this.slider)==null?void 0:t.pointersOverlap)!=null?n:!1}set pointersMinDistance(t){!this.slider||(this.slider.pointersMinDistance=t)}get pointersMinDistance(){var t,n;return(n=(t=this.slider)==null?void 0:t.pointersMinDistance)!=null?n:0}set pointersMaxDistance(t){!this.slider||(this.slider.pointersMaxDistance=t)}get pointersMaxDistance(){var t,n;return(n=(t=this.slider)==null?void 0:t.pointersMaxDistance)!=null?n:1/0}set theme(t){!this.slider||!this.slider.styles||(this.slider.styles.theme=t)}get theme(){var t,n,s;return(s=(n=(t=this.slider)==null?void 0:t.styles)==null?void 0:n.theme)!=null?s:null}set rtl(t){!this.slider||(this.slider.rightToLeft=t)}get rtl(){var t,n;return(n=(t=this.slider)==null?void 0:t.rightToLeft)!=null?n:!1}set btt(t){!this.slider||(this.slider.bottomToTop=t)}get btt(){var t,n;return(n=(t=this.slider)==null?void 0:t.bottomToTop)!=null?n:!1}set keyboardDisabled(t){!this.slider||(this.slider.keyboardDisabled=t)}get keyboardDisabled(){var t,n;return(n=(t=this.slider)==null?void 0:t.keyboardDisabled)!=null?n:!1}set mousewheelDisabled(t){!this.slider||(this.slider.mousewheelDisabled=t)}get mousewheelDisabled(){var t,n;return(n=(t=this.slider)==null?void 0:t.mousewheelDisabled)!=null?n:!1}set animateOnClick(t){!this.slider||(this.slider.animateOnClick=t)}get animateOnClick(){var t;return(t=this.slider)==null?void 0:t.animateOnClick}get rangeDragging(){var t,n;return(n=(t=this.slider)==null?void 0:t.rangeDragging)!=null?n:!1}set rangeDragging(t){this.slider&&(this.slider.rangeDragging=D(t))}get externalCSSList(){return this._externalCSSList}addPointer(t){var s,d;if(!this.slider)return;let n=(d=(s=this.slider)==null?void 0:s.addPointer(t))!=null?d:0;tt(this,this.slider,n,`value${n+1}`,`ariaLabel${n+1}`,`pointerShape${n+1}`,`pointer${n+1}Disabled`)}removePointer(){var t;!this.slider||(t=this.slider)==null||t.removePointer()}addCSS(t){if(!this.shadowRoot)return;let n=document.createElement("style");n.textContent=t,this.shadowRoot.appendChild(n)}connectedCallback(){var d,m;if(!this.shadowRoot)return;this._externalCSSList=yn(this),this.shadowRoot.innerHTML=St(Tt,this._externalCSSList);let t=(d=this.shadowRoot)==null?void 0:d.querySelector(".pointer");if(!t)return;let n=(m=this.shadowRoot)==null?void 0:m.getElementById("range-slider");if(!n)return;let s=Sn(this,t);this.slider=wn(this,n,s),Tn(this,this.slider),this._observer=new MutationObserver(l=>{l.forEach(a=>{var x;if(!this.slider||a.type!=="attributes")return;let f=a.attributeName;!f||Dn(this.slider,f,(x=this.getAttribute(f))!=null?x:"")})}),this._observer.observe(this,{attributes:!0})}disconnectedCallback(){this._observer&&this._observer.disconnect(),this.slider&&this.slider.destroy()}},De=it;window.tcRangeSlider=De;customElements.get("toolcool-range-slider")||customElements.define("toolcool-range-slider",De);customElements.get("tc-range-slider")||customElements.define("tc-range-slider",class extends De{});})();
+</script>
+<script>
+/* Tool Cool Range Slider - Marks Plugin v1.0.1 - MIT License - inlined */
+(()=>{var R=(r,n,t,c,d)=>{let a=n-r;return a===0?t:(c-t)*(d-r)/a+t},I=r=>!isNaN(parseFloat(r))&&isFinite(r),g=(r,n)=>I(r)?Number(r):n;var h=r=>r==null?!1:typeof r=="boolean"?r:r.trim().toLowerCase()==="true";window.tcRangeSliderPlugins=window.tcRangeSliderPlugins||[];var p=11,y=11,A=()=>{let r=null,n=null,t=null,c=null,d=null,a=!1,s=p,u=y,L=()=>{var l;let e=(l=r==null?void 0:r.shadowRoot)==null?void 0:l.querySelector("#range-slider");t=document.createElement("div"),t.classList.add("marks"),c=document.createElement("div"),c.classList.add("mark-points"),t.append(c),d=document.createElement("div"),d.classList.add("mark-values"),t.append(d),e.append(t)},P=()=>{!n||!t||t.classList.toggle("is-reversed",n.isRightToLeft()||n.isBottomToTop())},S=()=>{var v;if(!t||!n)return;let e=n.getMin(),l=n.getMax(),E=n.getType()==="vertical",f=n.isRightToLeft()||n.isBottomToTop();for(let i=0;i<s;i++){let o=document.createElement("div");o.classList.add("mark",`mark-${i}`);let m=s===0?0:i*100/(s-1);E?f?o.style.top=`${100-m}%`:o.style.top=`${m}%`:f?o.style.left=`${100-m}%`:o.style.left=`${m}%`,c==null||c.append(o)}let b=n.getData();for(let i=0;i<u;i++){let o=document.createElement("div");o.classList.add("mark-value",`mark-value-${i}`);let m=u===0?0:i*100/(u-1),w=R(0,u-1,e,l,i);o.textContent=(b?(v=b[Math.round(w)])!=null?v:"":w).toString(),E?f?o.style.top=`${100-m}%`:o.style.top=`${m}%`:f?o.style.left=`${100-m}%`:o.style.left=`${m}%`,d==null||d.append(o)}},k=(e,l)=>{T(),s=e,u=l,s<=0&&(s=p),u<=0&&(u=y),L(),S(),P()},C=e=>{a=e,a?(L(),S(),P()):T()},x=e=>{!t||t.style.setProperty("--marks-color",e)},M=e=>{!t||t.style.setProperty("--values-color",e)},T=()=>{t==null||t.remove()};return{get name(){return"Marks"},init:(e,l,E,f)=>{var b,v;n=f,r=e,a=h(r.getAttribute("marks")),a&&(k(g(r.getAttribute("marks-count"),p),g(r.getAttribute("marks-values-count"),y)),x((b=r.getAttribute("marks-color"))!=null?b:"#cbd5e1"),M((v=r.getAttribute("marks-values-color"))!=null?v:"#475569"))},onAttrChange:(e,l)=>{e==="marks"&&C(h(l)),e==="marks-count"&&k(g(l,p),u),e==="marks-values-count"&&k(s,g(l,y)),e==="marks-color"&&x(l),e==="marks-values-color"&&M(l)},gettersAndSetters:[{name:"marksEnabled",attributes:{get(){return a!=null?a:!1},set:e=>{C(h(e))}}},{name:"marksCount",attributes:{get(){return s!=null?s:p},set:e=>{k(g(e,p),u)}}},{name:"marksValuesCount",attributes:{get(){return s!=null?s:p},set:e=>{k(s,g(e,y))}}},{name:"marksColor",attributes:{get(){return t==null?void 0:t.style.getPropertyValue("--marks-color")},set:e=>{x(e)}}},{name:"markValuesColor",attributes:{get(){return t==null?void 0:t.style.getPropertyValue("--values-color")},set:e=>{M(e)}}}],destroy:T,css:`
+:root{
+  --marks-color: #cbd5e1;
+  --values-color: #475569;
+}
+
+.marks{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  top: 100%;
+  left: 0;
+  color: var(--values-color, #475569);
+}
+
+.type-vertical .marks{
+  width: auto;
+  height: 100%;
+  top: 0;
+  left: 100%;
+  flex-direction: row;
+}
+
+.mark-points{
+  width: 100%;
+  height: 1rem;
+  position: relative;
+  margin-top: 5px;
+}
+
+.type-vertical .mark-points {
+  width: 1rem;
+  height: 100%;
+  margin-top: 0;
+  margin-left: 5px;
+}
+
+.mark-values{
+  width: 100%;
+  height: 1rem;
+  position: relative;
+}
+
+.type-vertical .mark-values {
+  width: 1rem;
+  height: 100%;
+  margin-left: 0.7rem;
+}
+
+.mark{
+  background: var(--marks-color, #cbd5e1);
+  width: 2px;
+  height: 5px;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.type-vertical .mark {
+    width: 5px;
+    height: 2px;
+    transform: translateY(-50%);
+}
+
+.mark-value{
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.type-vertical .mark-value{
+    transform: translateY(-50%);
+}
+    `}};window.tcRangeSliderPlugins.push(A);var $=A;})();
+</script>
+<script>
+/* Tool Cool Range Slider - Generated Labels Plugin v1.0.8 - MIT License - inlined */
+(()=>{var E=s=>s==null?!1:typeof s=="boolean"?s:s.trim().toLowerCase()==="true";window.tcRangeSliderPlugins=window.tcRangeSliderPlugins||[];var F="min-label",H="max-label",y="#1E293B",A=()=>{let s=null,b=null,i=null,L,m=!1,n=y,l="",x,r=null,o=null,u=null,g=[],S=()=>{var t;let e=(t=s==null?void 0:s.shadowRoot)==null?void 0:t.querySelector(".range-slider-box");r=document.createElement("div"),r.classList.add("labels-row"),e.prepend(r)},v=e=>{let t=document.createElement("label");return t.className=e,t.setAttribute("for","range-slider"),t},C=()=>{o=v(F),o.textContent=f(i==null?void 0:i.getTextMin(),l),u=v(H),u.textContent=f(i==null?void 0:i.getTextMax(),l),b==null||b.before(o),b==null||b.after(u);let e=i==null?void 0:i.getValues();if(!!e)for(let t=0;t<e.length;t++){let a=v(`value${t+1}-label generated-label`);a.textContent=f(e[t],l),g.push(a),r==null||r.append(a)}},I=()=>{for(let e of g)!e||e.remove();o==null||o.remove(),u==null||u.remove(),r==null||r.remove(),g=[]},M=e=>{m=e,m?(S(),C()):I()},T=e=>{n=e;for(let t of g)!t||(t.style.color=n!=null?n:y);o&&(o.style.color=n!=null?n:y),u&&(u.style.color=n!=null?n:y)},h=e=>{l=e,L&&L()},P=()=>{!i||!r||r.classList.toggle("is-reversed",i.isRightToLeft()||i.isBottomToTop())},f=(e,t)=>{let a=`${(e!=null?e:"").toString()}${t}`;return!!x&&typeof x=="function"?x(e):a};return{get name(){return"Generated Labels"},init:(e,t,a,d)=>{var c,p,w;s=e,i=d,b=(c=e.shadowRoot)==null?void 0:c.getElementById("range-slider"),L=t,n=(p=s.getAttribute("generate-labels-text-color"))!=null?p:y,l=(w=s.getAttribute("generate-labels-units"))!=null?w:"",M(E(s.getAttribute("generate-labels"))),P(),T(n)},update:e=>{if(!(!m||!e.values)){P();for(let t=0;t<e.values.length;t++){let a=e.values[t],d=g[t];if(a===void 0&&!!d){d.remove(),g[t]=void 0;continue}if(a!==void 0&&!d){let c=v(`value${t+1}-label generated-label`);if(c.textContent=f(a,l),g[t]=c,e.values.length<=0)r==null||r.append(c);else if(t===0)r==null||r.append(c);else{let p=g[t-1];p==null||p.after(c)}continue}!d||(d.textContent=f(a,l))}o&&(o.textContent=f(e.textMin,l)),u&&(u.textContent=f(e.textMax,l)),T(n)}},onAttrChange:(e,t)=>{e==="generate-labels"&&M(E(t)),e==="generate-labels-text-color"&&T(t),e==="generate-labels-units"&&h(t)},gettersAndSetters:[{name:"generateLabels",attributes:{get(){return m!=null?m:!1},set:e=>{M(E(e))}}},{name:"textColor",attributes:{get(){return n!=null?n:""},set:e=>{T(e)}}},{name:"generateLabelsTextColor",attributes:{get(){return n!=null?n:""},set:e=>{T(e)}}},{name:"units",attributes:{get(){return l!=null?l:""},set:e=>{h(e)}}},{name:"generateLabelsUnits",attributes:{get(){return l!=null?l:""},set:e=>{h(e)}}},{name:"generateLabelsFormat",attributes:{get(){return x},set:e=>{x=e,L&&L()}}}],css:`
+    .labels-row{
+      text-align: center;
+      display: flex;
+      justify-content: center;
+    }
+
+    .is-reversed,
+    .is-reversed + .row{
+      flex-direction: row-reverse;
+    }
+
+    .type-vertical{
+      position: relative;
+    }
+
+    .type-vertical .labels-row{
+      flex-direction: column;
+      position: absolute;
+      top: 50%;
+      right: -100%;
+      transform: translateY(-50%);
+    }
+
+    .type-vertical .is-reversed,
+    .type-vertical .is-reversed + .row{
+      flex-direction: column-reverse;
+    }
+
+    .max-label,
+    .min-label{
+      margin: 0 1rem;
+      width: 2rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .generated-label{
+      text-align: center;
+      margin: 0 0.5rem;
+      white-space: nowrap;
+    }
+    `,destroy:I}};window.tcRangeSliderPlugins.push(A);var O=A;})();
+</script>
+</head>
+<body>
+
+<h1>スライダー UI ギャラリー</h1>
+<p class="lead">
+  身近な例で使えるスライダー(つまみで数値を選ぶ部品)をいろいろ集めました。1本のつまみ、2本のつまみで範囲を選ぶもの、
+  縦向き、目盛りにピタッと止まるもの、回すタイプなど、動きが違うものを並べています。
+  Part 1は自作の部品、Part 2はブラウザ標準の部品を使ったもの、Part 3は他の人が作った公式ライブラリをそのまま使ったものです。
+</p>
+
+<h2 class="part-title">Part 1 — Web Component版(&lt;my-range-slider&gt;)</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="label">勉強・仕事アプリ</div>
+    <h3>集中する時間を決める</h3>
+    <div class="hint">つまみを動かして、集中して作業する時間を1分きざみで選びます。</div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <my-range-slider id="wcTimer" min="5" max="60" step="1" value="25"></my-range-slider>
+      <span class="value" id="wcTimerVal" style="font-size:18px; margin:0;">25分</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">エアコンアプリ</div>
+    <h3>設定温度を決める</h3>
+    <div class="hint">温度計のように、縦向きのつまみを上下に動かして設定温度(16〜30℃)を選びます。</div>
+    <div style="display:flex; align-items:center; gap:20px; height:200px;">
+      <my-range-slider id="wcAircon" vertical min="16" max="30" step="1" value="24" style="height:190px; --filled-color:#f97316; --pointer-border-color:#f97316;"></my-range-slider>
+      <span class="value" id="wcAirconVal" style="font-size:18px; margin:0;">24℃</span>
+    </div>
+  </div>
+
+</div>
+
+<h2 class="part-title">Part 2 — ネイティブ / カスタムドラッグ実装(それぞれ異なる操作方式)</h2>
+<div class="grid">
+
+  <!-- 2ポインター範囲 + 数値入力 + チップ -->
+  <div class="card">
+    <div class="label">イベント管理</div>
+    <h3>参加可能な年齢層の設定</h3>
+    <div class="hint">2つのつまみで対象年齢の範囲を決め、数値入力でも微調整できます。</div>
+    <div class="value" id="ageLabel">18歳 〜 65歳</div>
+    <div class="dslider">
+      <div class="track"></div>
+      <div class="fill" id="ageFill" style="background: linear-gradient(90deg,#059669,#34d399);"></div>
+      <input id="ageMinRange" type="range" min="0" max="100" step="1" value="18">
+      <input id="ageMaxRange" type="range" min="0" max="100" step="1" value="65">
+      <div class="dthumb" id="ageMinThumb" style="border-color:#059669;"></div>
+      <div class="dthumb" id="ageMaxThumb" style="border-color:#059669;"></div>
+    </div>
+    <div class="inputs">
+      <div class="input-box"><label>下限年齢</label><div class="input-row"><input id="ageMinInput" type="number"></div></div>
+      <div class="input-box"><label>上限年齢</label><div class="input-row"><input id="ageMaxInput" type="number"></div></div>
+    </div>
+    <div class="chips">
+      <button class="chip" onclick="setAgeRange(18,25)">18〜25歳</button>
+      <button class="chip" onclick="setAgeRange(26,40)">26〜40歳</button>
+      <button class="chip" onclick="setAgeRange(0,100)">全年齢</button>
+    </div>
+    <button class="primary" onclick="applyAge()">この条件で募集を開始</button>
+    <div class="result" id="ageResult"></div>
+  </div>
+
+  <!-- 3ポインター + セグメント区切り -->
+  <div class="card">
+    <div class="label">学習アプリ</div>
+    <h3>テストの点数で成績を決める</h3>
+    <div class="hint">3つのつまみを動かして、0〜100点を4段階の成績に区切ります。</div>
+    <div class="dslider">
+      <div class="track">
+        <div class="segment" id="lvlSeg0"></div>
+        <div class="segment" id="lvlSeg1"></div>
+        <div class="segment" id="lvlSeg2"></div>
+        <div class="segment" id="lvlSeg3"></div>
+      </div>
+      <input id="lvlRange0" type="range" min="0" max="100" step="1" value="30">
+      <input id="lvlRange1" type="range" min="0" max="100" step="1" value="60">
+      <input id="lvlRange2" type="range" min="0" max="100" step="1" value="85">
+      <div class="dthumb" id="lvlThumb0"></div>
+      <div class="dthumb" id="lvlThumb1"></div>
+      <div class="dthumb" id="lvlThumb2"></div>
+    </div>
+    <div class="tier-list" id="lvlList"></div>
+  </div>
+
+  <!-- 独立した縦スライダー群 -->
+  <div class="card">
+    <div class="label">音楽アプリ</div>
+    <h3>音の高さごとに音量を調整する</h3>
+    <div class="hint">低い音・中くらいの音・高い音、それぞれの大きさを4本のつまみで調整します。</div>
+    <div class="vgroup" id="eqGroup"></div>
+  </div>
+
+  <!-- 離散マーク式スナップスライダー(新規) -->
+  <div class="card">
+    <div class="label">アンケートフォーム</div>
+    <h3>満足度アンケート</h3>
+    <div class="hint">5段階の目盛りにだけスナップする離散スライダーです(自由な値は選べません)。</div>
+    <div class="mood-display" id="moodEmoji">😐</div>
+    <div class="mood-text" id="moodText">普通</div>
+    <div class="marks-slider">
+      <input id="moodRange" type="range" min="0" max="4" step="1" value="2" list="moodMarks" style="accent-color:#f59e0b;">
+      <datalist id="moodMarks">
+        <option value="0"></option><option value="1"></option><option value="2"></option>
+        <option value="3"></option><option value="4"></option>
+      </datalist>
+      <div class="marks-labels"><span>😞</span><span>🙁</span><span>😐</span><span>🙂</span><span>😄</span></div>
+    </div>
+  </div>
+
+  <!-- 回転式ノブ(新規) -->
+  <div class="card">
+    <div class="label">キッチン家電</div>
+    <h3>オーブンの調理タイマーつまみ</h3>
+    <div class="hint">つまみをドラッグ(上下)するか、フォーカスして矢印キー・マウスホイールで回します。</div>
+    <div class="knob-row">
+      <div class="knob" id="ovenKnob" tabindex="0" role="slider" aria-label="調理時間" aria-valuemin="0" aria-valuemax="60" aria-valuenow="20">
+        <div class="knob-indicator" id="ovenIndicator"></div>
+      </div>
+      <div>
+        <div class="knob-readout" id="ovenVal">20分</div>
+        <div class="knob-hint">0〜60分</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h2 class="part-title">Part 3 — 本家 toolcool-range-slider(公式ライブラリ)を使用</h2>
+<div class="grid">
+
+  <div class="card">
+    <div class="label">スマホの契約</div>
+    <h3>データ通信量プランを選ぶ</h3>
+    <div class="hint">1GB→3GB→5GB…とプランごとに増える幅がバラバラなリストから、ぴったり選びます。</div>
+    <tc-range-slider
+      id="tcIso"
+      data="1, 3, 5, 10, 20, 50, 100"
+      value="10"
+      marks="true"
+      marks-count="7"
+      marks-values-count="7"
+      generate-labels="true">
+    </tc-range-slider>
+    <div class="value" id="tcIsoVal" style="margin-top:30px; font-size:16px;">10GB</div>
+  </div>
+
+</div>
+
+<script>
+/* ============ Part 1: Web Component (自作 <my-range-slider>) ============ */
+class MyRangeSlider extends HTMLElement {
+  static get observedAttributes() {
+    return ['min', 'max', 'step', 'value', 'vertical', 'disabled', 'no-tooltip', 'min-distance'];
+  }
+  constructor() {
+    super();
+    this._activeIndex = -1;
+    this._values = [];
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
+    const shadow = this.attachShadow({ mode: 'open' });
+    shadow.innerHTML = `
+      <style>
+        :host {
+          display: inline-block; width: 100%;
+          --track-color: #d9d9e3; --filled-color: #4f7cff; --pointer-color: #ffffff;
+          --pointer-border-color: #4f7cff; --track-height: 6px; --track-width: 6px;
+          --pointer-size: 18px; --tooltip-bg: #333; --tooltip-color: #fff;
+          user-select: none; -webkit-user-select: none; touch-action: none;
+        }
+        :host([disabled]) { opacity: 0.5; pointer-events: none; }
+        .wrap { position: relative; display: flex; align-items: center; width: 100%; height: calc(var(--pointer-size) + 16px); }
+        :host([vertical]) .wrap { height: 100%; width: calc(var(--pointer-size) + 16px); flex-direction: column; }
+        .track { position: relative; width: 100%; height: var(--track-height); background: var(--track-color); border-radius: 999px; cursor: pointer; }
+        :host([vertical]) .track { width: var(--track-width); height: 100%; }
+        .filled { position: absolute; background: var(--filled-color); border-radius: 999px; }
+        :host(:not([vertical])) .filled { top: 0; height: 100%; }
+        :host([vertical]) .filled { left: 0; width: 100%; bottom: 0; }
+        .pointer {
+          position: absolute; width: var(--pointer-size); height: var(--pointer-size);
+          background: var(--pointer-color); border: 2px solid var(--pointer-border-color);
+          border-radius: 50%; top: 50%; transform: translate(-50%, -50%);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: grab; box-sizing: border-box;
+        }
+        :host([vertical]) .pointer { top: auto; left: 50%; transform: translate(-50%, 50%); }
+        .pointer:focus { outline: 2px solid var(--filled-color); outline-offset: 2px; }
+        .pointer.active { cursor: grabbing; }
+        .tooltip {
+          position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+          background: var(--tooltip-bg); color: var(--tooltip-color); font-size: 12px; padding: 2px 6px;
+          border-radius: 4px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.12s ease;
+        }
+        :host([vertical]) .tooltip { bottom: auto; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+        .pointer:hover .tooltip, .pointer.active .tooltip, .pointer:focus .tooltip { opacity: 1; }
+        :host([no-tooltip]) .tooltip { display: none; }
+      </style>
+      <div class="wrap"><div class="track" part="track"><div class="filled" part="filled"></div></div></div>
+    `;
+    this._trackEl = shadow.querySelector('.track');
+    this._filledEl = shadow.querySelector('.filled');
+    this._wrapEl = shadow.querySelector('.wrap');
+    this._trackEl.addEventListener('pointerdown', (e) => this._onTrackClick(e));
+  }
+  connectedCallback() { this._render(); }
+  attributeChangedCallback() { this._render(); }
+  get min() { return parseFloat(this.getAttribute('min')) || 0; }
+  get max() { const m = parseFloat(this.getAttribute('max')); return isNaN(m) ? 100 : m; }
+  get step() { const s = parseFloat(this.getAttribute('step')); return isNaN(s) || s <= 0 ? 1 : s; }
+  get minDistance() { const d = parseFloat(this.getAttribute('min-distance')); return isNaN(d) ? 0 : d; }
+  get vertical() { return this.hasAttribute('vertical'); }
+  get values() { return this._values.slice(); }
+  set values(arr) { this._values = arr.map((v) => this._clamp(v)); this.setAttribute('value', this._values.join(',')); }
+  get value() { return this._values[0]; }
+  _parseValuesFromAttr() {
+    const raw = this.getAttribute('value');
+    if (!raw) return [this.min];
+    return raw.split(',').map((s) => this._clamp(parseFloat(s.trim())));
+  }
+  _clamp(v) {
+    if (isNaN(v)) v = this.min;
+    const min = this.min, max = this.max, step = this.step;
+    v = Math.min(max, Math.max(min, v));
+    const steps = Math.round((v - min) / step);
+    v = min + steps * step;
+    v = Math.round(v * 1e6) / 1e6;
+    return Math.min(max, Math.max(min, v));
+  }
+  _valueToPercent(v) { const min = this.min, max = this.max; if (max === min) return 0; return ((v - min) / (max - min)) * 100; }
+  _percentToValue(pct) { const min = this.min, max = this.max; return min + (pct / 100) * (max - min); }
+  _render() {
+    const newValues = this._parseValuesFromAttr();
+    const countChanged = newValues.length !== this._pointerEls?.length;
+    this._values = newValues;
+    if (!this._pointerEls || countChanged) this._buildPointers(newValues.length);
+    this._values.forEach((v, i) => {
+      const pct = this._valueToPercent(v);
+      const pointerEl = this._pointerEls[i];
+      const tooltipEl = this._tooltipEls[i];
+      if (this.vertical) { pointerEl.style.bottom = pct + '%'; pointerEl.style.left = '50%'; }
+      else { pointerEl.style.left = pct + '%'; pointerEl.style.top = '50%'; }
+      tooltipEl.textContent = this._formatValue(v);
+      pointerEl.setAttribute('aria-valuenow', v);
+      pointerEl.setAttribute('aria-valuemin', this.min);
+      pointerEl.setAttribute('aria-valuemax', this.max);
+      pointerEl.setAttribute('tabindex', this.hasAttribute('disabled') ? '-1' : '0');
+    });
+    this._updateFilled();
+  }
+  _formatValue(v) { return Number(v.toFixed(6)).toString(); }
+  _updateFilled() {
+    if (this._values.length === 0) return;
+    const lo = Math.min(...this._values), hi = Math.max(...this._values);
+    const pLo = this._valueToPercent(lo), pHi = this._valueToPercent(hi);
+    if (this.vertical) { this._filledEl.style.bottom = pLo + '%'; this._filledEl.style.height = (pHi - pLo) + '%'; this._filledEl.style.left = ''; this._filledEl.style.width = ''; }
+    else { this._filledEl.style.left = pLo + '%'; this._filledEl.style.width = (pHi - pLo) + '%'; this._filledEl.style.bottom = ''; this._filledEl.style.height = ''; }
+  }
+  _buildPointers(count) {
+    if (this._pointerEls) this._pointerEls.forEach((el) => el.remove());
+    this._pointerEls = []; this._tooltipEls = [];
+    for (let i = 0; i < count; i++) {
+      const pointerEl = document.createElement('div');
+      pointerEl.className = 'pointer'; pointerEl.setAttribute('part', 'pointer');
+      pointerEl.setAttribute('role', 'slider'); pointerEl.setAttribute('tabindex', '0');
+      const tooltipEl = document.createElement('div'); tooltipEl.className = 'tooltip';
+      pointerEl.appendChild(tooltipEl);
+      pointerEl.addEventListener('pointerdown', (e) => this._onPointerDown(e, i));
+      pointerEl.addEventListener('keydown', (e) => this._onKeyDown(e, i));
+      pointerEl.addEventListener('wheel', (e) => this._onWheel(e, i), { passive: false });
+      this._wrapEl.appendChild(pointerEl);
+      this._pointerEls.push(pointerEl); this._tooltipEls.push(tooltipEl);
+    }
+  }
+  _onPointerDown(e, index) {
+    if (this.hasAttribute('disabled')) return;
+    e.preventDefault(); e.stopPropagation();
+    this._activeIndex = index;
+    this._pointerEls[index].classList.add('active');
+    this._pointerEls[index].focus();
+    document.addEventListener('pointermove', this._onPointerMove);
+    document.addEventListener('pointerup', this._onPointerUp);
+  }
+  _onPointerMove(e) { if (this._activeIndex < 0) return; e.preventDefault(); this._moveActiveTo(this._eventToPercent(e), true); }
+  _onPointerUp() {
+    if (this._activeIndex >= 0) { this._pointerEls[this._activeIndex]?.classList.remove('active'); this._dispatchChange(); }
+    this._activeIndex = -1;
+    document.removeEventListener('pointermove', this._onPointerMove);
+    document.removeEventListener('pointerup', this._onPointerUp);
+  }
+  _onTrackClick(e) {
+    if (this.hasAttribute('disabled')) return;
+    if (e.target !== this._trackEl) return;
+    const pct = this._eventToPercent(e);
+    const target = this._percentToValue(pct);
+    let nearest = 0, best = Infinity;
+    this._values.forEach((v, i) => { const d = Math.abs(v - target); if (d < best) { best = d; nearest = i; } });
+    this._activeIndex = nearest;
+    this._moveActiveTo(pct, true);
+    this._dispatchChange();
+    this._activeIndex = -1;
+  }
+  _eventToPercent(e) {
+    const rect = this._trackEl.getBoundingClientRect();
+    let pct;
+    if (this.vertical) pct = ((rect.bottom - e.clientY) / rect.height) * 100;
+    else pct = ((e.clientX - rect.left) / rect.width) * 100;
+    return Math.min(100, Math.max(0, pct));
+  }
+  _moveActiveTo(pct, fromInput) {
+    const i = this._activeIndex;
+    if (i < 0) return;
+    let v = this._clamp(this._percentToValue(pct));
+    const md = this.minDistance;
+    if (i > 0) { const prev = this._values[i - 1]; if (v < prev + md) v = this._clamp(prev + md); }
+    if (i < this._values.length - 1) { const next = this._values[i + 1]; if (v > next - md) v = this._clamp(next - md); }
+    this._values[i] = v;
+    this.setAttribute('value', this._values.join(','));
+    if (fromInput) this.dispatchEvent(new CustomEvent('input', { detail: { index: i, value: v, values: this.values } }));
+  }
+  _onKeyDown(e, index) {
+    if (this.hasAttribute('disabled')) return;
+    const step = this.step;
+    let delta = 0;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowUp': delta = step; break;
+      case 'ArrowLeft': case 'ArrowDown': delta = -step; break;
+      case 'Home': this._activeIndex = index; this._moveActiveTo(0, true); this._dispatchChange(); this._activeIndex = -1; e.preventDefault(); return;
+      case 'End': this._activeIndex = index; this._moveActiveTo(100, true); this._dispatchChange(); this._activeIndex = -1; e.preventDefault(); return;
+      default: return;
+    }
+    e.preventDefault();
+    this._activeIndex = index;
+    const pct = this._valueToPercent(this._values[index] + delta);
+    this._moveActiveTo(pct, true);
+    this._dispatchChange();
+    this._activeIndex = -1;
+  }
+  _onWheel(e, index) {
+    if (this.hasAttribute('disabled')) return;
+    e.preventDefault();
+    const step = this.step;
+    const delta = e.deltaY < 0 ? step : -step;
+    this._activeIndex = index;
+    const pct = this._valueToPercent(this._values[index] + delta);
+    this._moveActiveTo(pct, true);
+    this._dispatchChange();
+    this._activeIndex = -1;
+  }
+  _dispatchChange() { this.dispatchEvent(new CustomEvent('change', { detail: { values: this.values, value: this.values[0] } })); }
+}
+customElements.define('my-range-slider', MyRangeSlider);
+
+document.getElementById('wcTimer').addEventListener('change', (e) => {
+  document.getElementById('wcTimerVal').textContent = e.detail.values[0] + '分';
+});
+document.getElementById('wcAircon').addEventListener('change', (e) => {
+  document.getElementById('wcAirconVal').textContent = e.detail.values[0] + '℃';
+});
+
+/* ============ Part 2 ============ */
+
+/* 汎用: 2つまみスライダー(オーバーレイ方式)のUIを反映する */
+function bindDualRangeUI(minRange, maxRange, fill, minThumb, maxThumb, maxValue) {
+  let min = Number(minRange.value);
+  let max = Number(maxRange.value);
+  if (min > max) [min, max] = [max, min];
+  minRange.value = min;
+  maxRange.value = max;
+  const minPercent = min / maxValue * 100;
+  const maxPercent = max / maxValue * 100;
+  fill.style.left = minPercent + '%';
+  fill.style.width = (maxPercent - minPercent) + '%';
+  minThumb.style.left = minPercent + '%';
+  maxThumb.style.left = maxPercent + '%';
+  return { min, max };
+}
+
+/* --- 2ポインター: 参加年齢層 --- */
+const ageMaxValue = 100;
+const ageMinRange = document.getElementById('ageMinRange');
+const ageMaxRange = document.getElementById('ageMaxRange');
+const ageFill = document.getElementById('ageFill');
+const ageMinThumb = document.getElementById('ageMinThumb');
+const ageMaxThumb = document.getElementById('ageMaxThumb');
+const ageLabel = document.getElementById('ageLabel');
+const ageMinInput = document.getElementById('ageMinInput');
+const ageMaxInput = document.getElementById('ageMaxInput');
+function updateAgeRange() {
+  const values = bindDualRangeUI(ageMinRange, ageMaxRange, ageFill, ageMinThumb, ageMaxThumb, ageMaxValue);
+  ageLabel.textContent = values.min + '歳 〜 ' + values.max + '歳';
+  ageMinInput.value = values.min;
+  ageMaxInput.value = values.max;
+}
+ageMinRange.addEventListener('input', updateAgeRange);
+ageMaxRange.addEventListener('input', updateAgeRange);
+ageMinInput.addEventListener('change', () => {
+  ageMinRange.value = Math.max(0, Math.min(Number(ageMinInput.value) || 0, Number(ageMaxRange.value)));
+  updateAgeRange();
+});
+ageMaxInput.addEventListener('change', () => {
+  ageMaxRange.value = Math.min(ageMaxValue, Math.max(Number(ageMaxInput.value) || ageMaxValue, Number(ageMinRange.value)));
+  updateAgeRange();
+});
+function setAgeRange(min, max) { ageMinRange.value = min; ageMaxRange.value = max; updateAgeRange(); }
+function applyAge() { document.getElementById('ageResult').textContent = '✓ ' + ageLabel.textContent + ' を対象に募集します'; }
+updateAgeRange();
+
+/* --- 3ポインター: 習熟度レベルのしきい値 --- */
+const lvlMaxValue = 100;
+const lvlNames = ['初級', '中級', '上級', 'エキスパート'];
+const lvlColors = ['#94a3b8', '#3b82f6', '#f59e0b', '#8b5cf6'];
+const lvlRanges = [document.getElementById('lvlRange0'), document.getElementById('lvlRange1'), document.getElementById('lvlRange2')];
+const lvlThumbs = [document.getElementById('lvlThumb0'), document.getElementById('lvlThumb1'), document.getElementById('lvlThumb2')];
+const lvlSegments = [document.getElementById('lvlSeg0'), document.getElementById('lvlSeg1'), document.getElementById('lvlSeg2'), document.getElementById('lvlSeg3')];
+const lvlList = document.getElementById('lvlList');
+lvlNames.forEach((name, index) => {
+  const item = document.createElement('div');
+  item.className = 'tier';
+  item.style.borderTopColor = lvlColors[index];
+  item.innerHTML = `<div class="tier-name">${name}</div><div class="tier-range"></div>`;
+  lvlList.appendChild(item);
+});
+function clampLvl(index) {
+  const values = lvlRanges.map((r) => Number(r.value));
+  const lowerLimit = index === 0 ? 0 : values[index - 1];
+  const upperLimit = index === 2 ? lvlMaxValue : values[index + 1];
+  lvlRanges[index].value = Math.min(Math.max(values[index], lowerLimit), upperLimit);
+}
+function updateLvlSlider() {
+  const values = lvlRanges.map((r) => Number(r.value));
+  const bounds = [0, ...values, lvlMaxValue];
+  lvlRanges.forEach((range, index) => {
+    const percent = values[index] / lvlMaxValue * 100;
+    lvlThumbs[index].style.left = percent + '%';
+    lvlThumbs[index].style.borderColor = lvlColors[index + 1];
+  });
+  lvlSegments.forEach((segment, index) => {
+    const from = bounds[index] / lvlMaxValue * 100;
+    const to = bounds[index + 1] / lvlMaxValue * 100;
+    segment.style.left = from + '%';
+    segment.style.width = (to - from) + '%';
+    segment.style.background = lvlColors[index];
+  });
+  document.querySelectorAll('#lvlList .tier-range').forEach((item, index) => {
+    item.textContent = bounds[index] + 'pt 〜 ' + (index === 3 ? '上限なし' : bounds[index + 1] + 'pt');
+  });
+}
+lvlRanges.forEach((range, index) => {
+  range.addEventListener('input', () => { clampLvl(index); updateLvlSlider(); });
+});
+updateLvlSlider();
+
+/* --- 独立した4本の垂直スライダー: イコライザー --- */
+const eqBands = [
+  { name: '低音', value: 3, color: '#ef4444' },
+  { name: 'やや低音', value: 0, color: '#f59e0b' },
+  { name: 'やや高音', value: -2, color: '#10b981' },
+  { name: '高音', value: 5, color: '#3b82f6' },
+];
+const eqGroup = document.getElementById('eqGroup');
+eqBands.forEach((band, i) => {
+  const slot = document.createElement('div');
+  slot.className = 'vslot';
+  slot.innerHTML = `
+    <span class="vlabel" id="eqVal${i}">${band.value > 0 ? '+' : ''}${band.value}</span>
+    <div class="vslider-wrap"><input id="eqRange${i}" type="range" min="-12" max="12" step="1" value="${band.value}" style="accent-color:${band.color};"></div>
+    <span class="vname">${band.name}</span>
+  `;
+  eqGroup.appendChild(slot);
+  const rangeEl = slot.querySelector('input');
+  const valEl = slot.querySelector('.vlabel');
+  rangeEl.addEventListener('input', () => {
+    const v = Number(rangeEl.value);
+    valEl.textContent = (v > 0 ? '+' : '') + v;
+  });
+});
+
+/* --- 離散マーク式スナップスライダー: 満足度アンケート --- */
+const moodItems = [
+  { emoji: '😞', text: 'とても不満' },
+  { emoji: '🙁', text: '不満' },
+  { emoji: '😐', text: '普通' },
+  { emoji: '🙂', text: '満足' },
+  { emoji: '😄', text: 'とても満足' },
+];
+const moodRange = document.getElementById('moodRange');
+const moodEmoji = document.getElementById('moodEmoji');
+const moodText = document.getElementById('moodText');
+function updateMood() {
+  const item = moodItems[Number(moodRange.value)];
+  moodEmoji.textContent = item.emoji;
+  moodText.textContent = item.text;
+}
+moodRange.addEventListener('input', updateMood);
+updateMood();
+
+/* --- 回転式ノブ: オーブンタイマー --- */
+/* 純粋関数として切り出すことでテストしやすくしている */
+function knobClampStep(value, min, max, step) {
+  let v = Math.min(max, Math.max(min, value));
+  const steps = Math.round((v - min) / step);
+  v = min + steps * step;
+  return Math.min(max, Math.max(min, v));
+}
+function knobValueFromDrag(startValue, deltaY, min, max, step, pixelsPerFullRange) {
+  // deltaY: startY - currentY (drag up = positive = increase)
+  const raw = startValue + (deltaY / pixelsPerFullRange) * (max - min);
+  return knobClampStep(raw, min, max, step);
+}
+function knobAngleForValue(value, min, max) {
+  const pct = (value - min) / (max - min);
+  return -135 + pct * 270; // -135deg .. +135deg, 270 degree sweep, gap at bottom
+}
+
+(function setupOvenKnob() {
+  const knobMin = 0, knobMax = 60, knobStep = 1, pixelsPerFullRange = 200;
+  let value = 20;
+  const knobEl = document.getElementById('ovenKnob');
+  const indicatorEl = document.getElementById('ovenIndicator');
+  const valEl = document.getElementById('ovenVal');
+  let dragging = false, startY = 0, startValue = 0;
+
+  function render() {
+    indicatorEl.style.transform = `rotate(${knobAngleForValue(value, knobMin, knobMax)}deg)`;
+    valEl.textContent = value + '分';
+    knobEl.setAttribute('aria-valuenow', value);
+  }
+
+  function setValue(v) { value = knobClampStep(v, knobMin, knobMax, knobStep); render(); }
+
+  knobEl.addEventListener('pointerdown', (e) => {
+    dragging = true; startY = e.clientY; startValue = value;
+    knobEl.setPointerCapture(e.pointerId);
+    knobEl.focus();
+  });
+  knobEl.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    setValue(knobValueFromDrag(startValue, startY - e.clientY, knobMin, knobMax, knobStep, pixelsPerFullRange));
+  });
+  knobEl.addEventListener('pointerup', () => { dragging = false; });
+  knobEl.addEventListener('pointercancel', () => { dragging = false; });
+  knobEl.addEventListener('wheel', (e) => { e.preventDefault(); setValue(value + (e.deltaY < 0 ? knobStep : -knobStep)); }, { passive: false });
+  knobEl.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { setValue(value + knobStep); e.preventDefault(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { setValue(value - knobStep); e.preventDefault(); }
+    else if (e.key === 'Home') { setValue(knobMin); e.preventDefault(); }
+    else if (e.key === 'End') { setValue(knobMax); e.preventDefault(); }
+  });
+
+  render();
+  window.__ovenKnobTestApi = { setValue, getValue: () => value }; // for automated testing
+})();
+
+/* ============ Part 3: 本家 toolcool-range-slider (公式ライブラリ) ============ */
+document.getElementById('tcIso').addEventListener('change', (e) => {
+  document.getElementById('tcIsoVal').textContent = e.detail.value1 + 'GB';
+});
+</script>
+</body>
+</html>
